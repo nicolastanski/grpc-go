@@ -19,6 +19,7 @@ const _ = grpc.SupportPackageIsVersion7
 type UserServiceClient interface {
 	AddUser(ctx context.Context, in *User, opts ...grpc.CallOption) (*User, error)
 	AddUserVerbose(ctx context.Context, in *User, opts ...grpc.CallOption) (UserService_AddUserVerboseClient, error)
+	AddUsers(ctx context.Context, opts ...grpc.CallOption) (UserService_AddUsersClient, error)
 }
 
 type userServiceClient struct {
@@ -70,12 +71,47 @@ func (x *userServiceAddUserVerboseClient) Recv() (*UserResultStream, error) {
 	return m, nil
 }
 
+func (c *userServiceClient) AddUsers(ctx context.Context, opts ...grpc.CallOption) (UserService_AddUsersClient, error) {
+	stream, err := c.cc.NewStream(ctx, &_UserService_serviceDesc.Streams[1], "/pb.UserService/AddUsers", opts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &userServiceAddUsersClient{stream}
+	return x, nil
+}
+
+type UserService_AddUsersClient interface {
+	Send(*User) error
+	CloseAndRecv() (*Users, error)
+	grpc.ClientStream
+}
+
+type userServiceAddUsersClient struct {
+	grpc.ClientStream
+}
+
+func (x *userServiceAddUsersClient) Send(m *User) error {
+	return x.ClientStream.SendMsg(m)
+}
+
+func (x *userServiceAddUsersClient) CloseAndRecv() (*Users, error) {
+	if err := x.ClientStream.CloseSend(); err != nil {
+		return nil, err
+	}
+	m := new(Users)
+	if err := x.ClientStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 // UserServiceServer is the server API for UserService service.
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility
 type UserServiceServer interface {
 	AddUser(context.Context, *User) (*User, error)
 	AddUserVerbose(*User, UserService_AddUserVerboseServer) error
+	AddUsers(UserService_AddUsersServer) error
 	mustEmbedUnimplementedUserServiceServer()
 }
 
@@ -88,6 +124,9 @@ func (UnimplementedUserServiceServer) AddUser(context.Context, *User) (*User, er
 }
 func (UnimplementedUserServiceServer) AddUserVerbose(*User, UserService_AddUserVerboseServer) error {
 	return status.Errorf(codes.Unimplemented, "method AddUserVerbose not implemented")
+}
+func (UnimplementedUserServiceServer) AddUsers(UserService_AddUsersServer) error {
+	return status.Errorf(codes.Unimplemented, "method AddUsers not implemented")
 }
 func (UnimplementedUserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
 
@@ -141,6 +180,32 @@ func (x *userServiceAddUserVerboseServer) Send(m *UserResultStream) error {
 	return x.ServerStream.SendMsg(m)
 }
 
+func _UserService_AddUsers_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(UserServiceServer).AddUsers(&userServiceAddUsersServer{stream})
+}
+
+type UserService_AddUsersServer interface {
+	SendAndClose(*Users) error
+	Recv() (*User, error)
+	grpc.ServerStream
+}
+
+type userServiceAddUsersServer struct {
+	grpc.ServerStream
+}
+
+func (x *userServiceAddUsersServer) SendAndClose(m *Users) error {
+	return x.ServerStream.SendMsg(m)
+}
+
+func (x *userServiceAddUsersServer) Recv() (*User, error) {
+	m := new(User)
+	if err := x.ServerStream.RecvMsg(m); err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
 var _UserService_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "pb.UserService",
 	HandlerType: (*UserServiceServer)(nil),
@@ -155,6 +220,11 @@ var _UserService_serviceDesc = grpc.ServiceDesc{
 			StreamName:    "AddUserVerbose",
 			Handler:       _UserService_AddUserVerbose_Handler,
 			ServerStreams: true,
+		},
+		{
+			StreamName:    "AddUsers",
+			Handler:       _UserService_AddUsers_Handler,
+			ClientStreams: true,
 		},
 	},
 	Metadata: "user.proto",
